@@ -68,7 +68,7 @@ class RedisHandle(object):
         conn = redis.Redis( connection_pool=self.pool )
         score = random.randint(1, 100)
 
-        print 'Adding "%s" (%d)' % (imagePath, score)
+        print '+ Adding "%s" (%d)' % (imagePath, score)
 
         conn.set( self.imageKey( imagePath ), data )
         conn.zadd( KEY_UNCHECKED, imagePath, score )

@@ -28,20 +28,20 @@ def request_images( host, rhandle ):
     imageNumber = 0
 
     while True:
-        print 'Sending request'
         socket.send( "Hello" )
 
         try:
             message = socket.recv()
         except KeyboardInterrupt:
-            print "Connection terminated"
+            print "+ Connection terminated"
             return
 
-        (image, width, height) = msgpack.unpackb( message )
+        (width, height, image) = msgpack.unpackb( message )
+        image = bytearray( image )
 
         imageNumber += 1
 
-        print 'Message Received [%d]' % len(message)
+        print '+ Message Received [%d] (%s x %s)' % (len( image ), width, height)
 
         path = 'tmp/image%04d.jpg' % imageNumber
 
@@ -51,7 +51,7 @@ def request_images( host, rhandle ):
         print '+ Saved image to [%s]' % path
 
         if rhandle:
-            rhandle.addNewImage( path, { width: width, height: height } )
+            rhandle.addNewImage( path, { 'width': width, 'height': height } )
 
 
 def show_image( imagePath ):
@@ -82,6 +82,12 @@ if __name__ == '__main__':
     if args.deltmp:
         for f in os.listdir('tmp/'):
             path = os.path.join('tmp/', f)
+
+            try:
+                if os.path.isfile(path):
+                    os.unlink(path)
+            except Exception, e:
+                print e
 
     if args.redishost and args.redisport:
         rhandle = RedisHandle( args.redishost, args.redisport )
