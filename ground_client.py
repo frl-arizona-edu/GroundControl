@@ -25,7 +25,12 @@ def request_images( host, rhandle ):
 
     atexit.register( teardown_connection )
 
+    imagePrefix = "image"
     imageNumber = 0
+
+    for f in os.listdir('tmp/'):
+        number = int(f[-len(imagePrefix):])
+        imageNumber = max( imageNumber, number )
 
     while True:
         socket.send( "Hello" )
@@ -45,7 +50,7 @@ def request_images( host, rhandle ):
 
         path = 'tmp/image%04d.jpg' % imageNumber
 
-        with open( path, 'a' ) as f:
+        with open( path, 'wb' ) as f:
             f.write( image )
 
         print '+ Saved image to [%s]' % path

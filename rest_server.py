@@ -8,6 +8,7 @@ from redis_interface import RedisHandle
 
 import msgpack
 import sys
+import argparse
 
 app = Flask(__name__)
 app.debug = True
@@ -15,18 +16,11 @@ global rhandle
 
 @app.route("/next", methods=[ "GET" ])
 def nextImage():
-    data = {}
-    data['uuid'] = random() * 1000000
-    data['telemetry'] = { 'x': 1.0, 'y': 1.0, 'z': 1.0 }
-    data['width'] = 100.0
-    data['height'] = 80.0
-
     imagePath = rhandle.getNextImage()
+    data = None
 
-    print imagePath
-
-    with open('test.jpg', 'rb') as f:
-        data['image'] = f.read()
+    with open(imagePath, 'rb') as f:
+        data = f.read()
         f.close()
 
     return msgpack.packb(data)
@@ -41,11 +35,17 @@ def handle_404(error = None):
     return make_response( jsonify( { "success": 0, "error": "404 - Not Found" } ), 404 )
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print 'Usage: python rest_server [REDIS HOST] [REDIS PORT]'
-        sys.exit(0)
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-s", "--redishost", help="Host address of the Redis server")
+    parser.add_argument("-p", "--redisport", help="Port of the Redis server")
+
+    args = parser.parse_args()
+
+    if not (args.redishost and args.redisport):
+        parser.error('Missing argument --redishost or --redisport')
 
     global rhandle
+    rhandle = RedisHandle( args.redishost, args.redisport )
 
-    rhandle = RedisHandle( sys.argv[1], sys.argv[2] )
     app.run()
