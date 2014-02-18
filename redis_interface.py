@@ -21,21 +21,13 @@ class RedisHandle(object):
     host = None
     port = None
 
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(RedisHandle, cls).__new__(cls, *args, **kwargs)
-
-        return cls._instance
-
     def __init__( self, host, port ):
-        super( RedisHandle, self ).__init__( self )
-
         self.host = host
         self.port = port
 
         if self.pool is None:
             self.pool = redis.ConnectionPool( host=self.host, port=self.port, db=0 )
-            print "+ Connected to Redis at [%s:%s]" % (host, port)
+            print("+ Connected to Redis at [{}:{}]".format(host, port))
 
         atexit.register( self.cleanUp )
 
@@ -45,7 +37,7 @@ class RedisHandle(object):
     Terminates the Redis connection on exit of the application.
     """
     def cleanUp( self ):
-        print "+ Closing Redis connection "
+        print("+ Closing Redis connection ")
         self.pool.disconnect()
 
     """
@@ -68,7 +60,7 @@ class RedisHandle(object):
         conn = redis.Redis( connection_pool=self.pool )
         score = random.randint(1, 100)
 
-        print '+ Adding "%s" (%d)' % (imagePath, score)
+        print('+ Adding "{}" ({})'.format(imagePath, score))
 
         conn.set( self.imageKey( imagePath ), data )
         conn.zadd( KEY_UNCHECKED, imagePath, score )
@@ -96,21 +88,21 @@ class RedisHandle(object):
     Marks an image as positively detected and stamps it with the time it was
     added to the database so it can be referenced later.
     """
-    def detectedImage( self, imagePath, data ):
+    def detectedImage( self, name, data ):
         conn = redis.Redis( connection_pool=self.pool )
 
-        conn.zrem( KEY_PROCESSING, imagePath )
-        conn.zadd( KEY_DETECTED, imagePath, time.time() )
+        conn.zrem( KEY_PROCESSING, name )
+        conn.zadd( KEY_DETECTED, name, 0 )
 
     """
     Marks an image as empty so that it won't be rescanned but it does not remove
     any data so its record can still be referenced in the future.
     """
-    def emptyImage( self, imagePath, data ):
+    def emptyImage( self, name ):
         conn = redis.Redis( connection_pool=self.pool )
 
-        conn.zrem( KEY_PROCESSING, imagePath )
-        conn.zadd( KEY_EMPTY, imagePath, time.time() )
+        conn.zrem( KEY_PROCESSING, name )
+        conn.zadd( KEY_EMPTY, name, 0 )
 
     """
     Periodically checks to see if any of the images that should be in the process

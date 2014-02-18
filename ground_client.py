@@ -1,6 +1,6 @@
 import msgpack
 import zmq
-import Tkinter
+import tkinter
 import sys
 import os
 import argparse
@@ -13,11 +13,8 @@ from redis_interface import RedisHandle
 def request_images( host, rhandle ):
     addr = "tcp://%s" % host
 
-    context = zmq.Context()
-    socket = context.socket(zmq.REQ)
+    socket = zmq.Context().socket(zmq.REQ)
     socket.connect( addr )
-
-    print 'Opening TCP Connection [%s]' % addr
 
     def teardown_connection():
         socket.disconnect( addr )
@@ -28,35 +25,37 @@ def request_images( host, rhandle ):
     imagePrefix = "image"
     imageNumber = 0
 
+    # Get last image name
     for f in os.listdir('tmp/'):
-        number = int(f[-len(imagePrefix):])
+        number = int(f[len(imagePrefix):-4])
         imageNumber = max( imageNumber, number )
 
     while True:
-        socket.send( "Hello" )
+        socket.send_string( "Hello" )
 
         try:
             message = socket.recv()
+            (width, height, image) = msgpack.unpackb( message )
         except KeyboardInterrupt:
-            print "+ Connection terminated"
+            print("+ Connection terminated")
             return
 
-        (width, height, image) = msgpack.unpackb( message )
         image = bytearray( image )
 
         imageNumber += 1
 
-        print '+ Message Received [%d] (%s x %s)' % (len( image ), width, height)
+        print('+ Message Received [{}] ({} x {})'.format(len( image ), width, height))
 
-        path = 'tmp/image%04d.jpg' % imageNumber
+        name = "image%04d" % imageNumber
+        path = "tmp/%s.jpg" % name
 
         with open( path, 'wb' ) as f:
             f.write( image )
 
-        print '+ Saved image to [%s]' % path
+        print('+ Saved image to [{}]'.format(path))
 
         if rhandle:
-            rhandle.addNewImage( path, { 'width': width, 'height': height } )
+            rhandle.addNewImage( name, { 'width': width, 'height': height } )
 
 
 def show_image( imagePath ):
@@ -91,32 +90,14 @@ if __name__ == '__main__':
             try:
                 if os.path.isfile(path):
                     os.unlink(path)
-            except Exception, e:
-                print e
+            except Exception:
+                print(e)
 
     if args.redishost and args.redisport:
         rhandle = RedisHandle( args.redishost, args.redisport )
 
         if args.flush:
             rhandle.emptyDatabase()
-
-    """
-    rhandle.addNewImage( 'test.jpg1', { 'x': 100, 'y': 100 } )
-    rhandle.addNewImage( 'test.jpg2', { 'x': 100, 'y': 100 } )
-    rhandle.addNewImage( 'test.jpg3', { 'x': 100, 'y': 100 } )
-    rhandle.addNewImage( 'test.jpg4', { 'x': 100, 'y': 100 } )
-
-
-    rhandle.getNextImage()
-    rhandle.getNextImage()
-    rhandle.getNextImage()
-    rhandle.getNextImage()
-
-    rhandle.detectedImage( 'test.jpg1', {} )
-    rhandle.detectedImage( 'test.jpg2', {} )
-    rhandle.detectedImage( 'test.jpg3', {} )
-    rhandle.detectedImage( 'test.jpg4', {} )
-    """
 
     if args.dimage:
         show_image( 'test.jpg' )

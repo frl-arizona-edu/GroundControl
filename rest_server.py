@@ -12,10 +12,10 @@ import argparse
 
 app = Flask(__name__)
 app.debug = True
-global rhandle
 
 @app.route("/next", methods=[ "GET" ])
 def nextImage():
+    rhandle = RedisHandle( args.redishost, args.redisport )
     imagePath = rhandle.getNextImage()
     data = None
 
@@ -25,9 +25,18 @@ def nextImage():
 
     return msgpack.packb(data)
 
-@app.route("/update", methods=[ "POST" ])
-def updateImageData():
-    pass
+@app.route("/update/<filename>/<int:found>", methods=[ "PUT" ])
+@app.route("/update/<filename>/<int:found>/<float:x>/<float:y>", methods=[ "PUT" ])
+def updateImageData(filename, found, x=-1.0, y=-1.0):
+    print("Updating image data [{}] [{}] [({}, {})]".format(filename, found, latitude, longitude))
+    rhandle = RedisHandle( args.redishost, args.redisport )
+
+    if found == 1:
+        rhandle.detectedImage(filename, { 'x': x, 'y': y })
+    else:
+        rhandle.emptyImage(filename)
+
+    return "hi"
 
 @app.route("/")
 @app.errorhandler(404)
@@ -44,8 +53,5 @@ if __name__ == "__main__":
 
     if not (args.redishost and args.redisport):
         parser.error('Missing argument --redishost or --redisport')
-
-    global rhandle
-    rhandle = RedisHandle( args.redishost, args.redisport )
 
     app.run()
