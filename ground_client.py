@@ -8,7 +8,7 @@ import atexit
 
 from PIL import Image, ImageTk
 
-from redis_interface import RedisHandle
+from psql_handle import PostgresHandle
 
 def request_images( host, rhandle ):
     addr = "tcp://%s" % host
@@ -73,9 +73,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-a", "--airplane",  help="[HOST:PORT]")
-    parser.add_argument("-s", "--redishost", help="Host address of the Redis server")
-    parser.add_argument("-p", "--redisport", help="Port of the Redis server")
-    parser.add_argument("--flush",           help="Flushes all keys from the Redis server", action="store_true")
+    parser.add_argument("-s", "--psqlhost", help="Host address of the Postgres server")
+    parser.add_argument("-p", "--psqlport", help="Port of the Postgres server")
+    parser.add_argument("--flush",           help="Flushes all keys from the Postgres server", action="store_true")
     parser.add_argument("-i", "--dimage",    help="Launch GUI", action="store_true")
     parser.add_argument("--deltmp",          help="Deletes the contents of the image directory", action="store_true")
 
@@ -93,8 +93,8 @@ if __name__ == '__main__':
             except Exception:
                 print(e)
 
-    if args.redishost and args.redisport:
-        rhandle = RedisHandle( args.redishost, args.redisport )
+    if args.psqlhost and args.psqlport:
+        rhandle = PostgresHandle( args.psqlhost, args.psqlport )
 
         if args.flush:
             rhandle.emptyDatabase()
