@@ -4,7 +4,7 @@ from flask import abort
 from flask import jsonify
 
 from random import random
-from redis_interface import RedisHandle
+from psql_handle import PostgresHandle
 
 import msgpack
 import sys
@@ -15,11 +15,11 @@ app.debug = True
 
 @app.route("/next", methods=[ "GET" ])
 def nextImage():
-    rhandle = RedisHandle( args.redishost, args.redisport )
-    imagePath = rhandle.getNextImage()
+    rhandle = PostgresHandle( args.psqlhost, args.psqlport )
+    image = rhandle.getNextImage()
     data = None
 
-    with open(imagePath, 'rb') as f:
+    with open('tmp/{}.jpg'.format(image[0]), 'rb') as f:
         data = f.read()
         f.close()
 
@@ -28,8 +28,8 @@ def nextImage():
 @app.route("/update/<filename>/<int:found>", methods=[ "PUT" ])
 @app.route("/update/<filename>/<int:found>/<float:x>/<float:y>", methods=[ "PUT" ])
 def updateImageData(filename, found, x=-1.0, y=-1.0):
-    print("Updating image data [{}] [{}] [({}, {})]".format(filename, found, latitude, longitude))
-    rhandle = RedisHandle( args.redishost, args.redisport )
+    print("Updating image data [{}] [{}] [({}, {})]".format(filename, found, x, y))
+    rhandle = PostgresHandle( args.psqlhost, args.psqlport )
 
     if found == 1:
         rhandle.detectedImage(filename, { 'x': x, 'y': y })
@@ -46,12 +46,12 @@ def handle_404(error = None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-s", "--redishost", help="Host address of the Redis server")
-    parser.add_argument("-p", "--redisport", help="Port of the Redis server")
+    parser.add_argument("-s", "--psqlhost", help="Host address of the Postgres server")
+    parser.add_argument("-p", "--psqlport", help="Port of the Postgres server")
 
     args = parser.parse_args()
 
-    if not (args.redishost and args.redisport):
-        parser.error('Missing argument --redishost or --redisport')
+    if not (args.psqlhost and args.psqlport):
+        parser.error('Missing argument --psqlhost or --psqlport')
 
     app.run()

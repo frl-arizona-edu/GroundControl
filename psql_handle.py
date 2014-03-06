@@ -4,7 +4,6 @@ import threading
 import atexit
 import psycopg2 as psql
 
-from enum import Enum
 from setint import setInterval
 
 UNPROCESSED = 'unprocessed'
@@ -23,6 +22,7 @@ class PostgresHandle(object):
     def getConnection( self ):
         args = { 'host': self.host,
                  'port': self.port,
+                 'database': 'auvsi',
                  'user': 'auvsi_owner',
                  'password': 'auvsi' }
         return psql.connect(**args)
@@ -37,13 +37,13 @@ class PostgresHandle(object):
         cursor.execute("""DELETE FROM images""")
         conn.commit()
 
-    def changeImageStatus( self, name, status ):
+    def changeImageStatus( self, name, status, senttime=None ):
         conn = self.getConnection()
         cursor = conn.cursor()
 
         cursor.execute("""UPDATE images
-                            SET status = ?
-                            WHERE name = ?""", (status, name, ))
+                            SET status = %s, sentTime = %s
+                            WHERE name = %s""", (status, senttime, name, ))
         conn.commit()
 
     """
@@ -57,7 +57,7 @@ class PostgresHandle(object):
         print('+ Adding "{}" ({})'.format(imagePath, score))
 
         cursor.execute("""INSERT INTO images(name, center, priority)
-                          VALUES(?,?,?)""", (imagePath, (1.0, 1.0), score))
+                          VALUES(%s,POINT(%s,%s),%s)""", (imagePath, 1.0, 1.0, score))
         conn.commit()
 
     """
@@ -66,17 +66,18 @@ class PostgresHandle(object):
     list to the 'processing' list.
     """
     def getNextImage( self ):
-        conn = self.getConnection()
-        results = conn.execute("""SELECT name, center, priority
-                                    FROM images
-                                    ORDER BY score, recvTime LIMIT 1""")
+        cursor = self.getConnection().cursor()
+        cursor.execute("""SELECT name, center, priority
+                            FROM images
+                            WHERE status = 'unprocessed'
+                            ORDER BY priority, recvTime LIMIT 1""")
 
-        if len(results) > 0:
-            next_image = results[0]
+        result = cursor.fetchone()
 
-            self.changeImageStatus(next_image[0], PROCESSING)
+        if result is not None:
+            self.changeImageStatus(result[0], PROCESSING, senttime=time.time())
 
-            return next_image
+            return result
 
         return None
 
@@ -101,9 +102,10 @@ class PostgresHandle(object):
     """
     @setInterval(1.0)
     def checkProcessing( self ):
-        conn = self.getConnection()
+        cursor = self.getConnection().cursor()
 
-        results = conn.execute("""SELECT name FROM images WHERE sentTime < ?""", (time.time() - 30))
+        cursor.execute("""SELECT name FROM images WHERE sentTime < %s""", (time.time() - 30, ))
+        results = cursor.fetchall()
 
         for result in results:
             self.changeImageStatus(result[0], UNPROCESSED)
